@@ -1,20 +1,23 @@
 var io = require('socket.io')(process.envPort||3000);
+var shortid = require('shortid');
 
 console.log("Server started");
 
-var playerCount = 0;
-
 io.on('connection', function(socket){
-    console.log("Client connected");
+    var thisPlayerId = shortid.generate();
+    var players = [];
+    players.push(thisPlayerId);
 
-    socket.broadcast.emit('spawn player');
-    playerCount++;
+    console.log('Client connected. Spawning player with id ' + thisPlayerId);
 
-    for(var i = 0; i < playerCount; i++)
-    {
-        socket.emit('spawn player');
-        console.log("Adding a new player.");
-    }
+    socket.broadcast.emit('spawn player', {id:thisPlayerId});
+
+    players.forEach(function(playerId){
+        if(playerId == thisPlayerId) return;
+
+        socket.emit('spawn player', {id:playerId});
+        console.log('Adding a new player' + playerId);
+    });
 
     socket.on('playerhere', function(data){
         console.log("Player has logged in.");
@@ -22,6 +25,7 @@ io.on('connection', function(socket){
 
     socket.on('disconnect', function(){
         console.log("Player disconnected.");
-        playerCount--;
+        players.splice(players.indexOf(thisPlayerId), 1);
+        socket.broadcast.emit('disconnected', {id:thisPlayerId});
     });
 });
